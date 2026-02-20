@@ -1,0 +1,1637 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PowerFault AI — Klasifikasi Gangguan Transmisi 150 kV</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&family=Exo+2:ital,wght@0,300;0,400;0,600;0,800;1,300&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #050b14;
+    --bg2: #080f1c;
+    --surface: #0c1829;
+    --surface2: #0f1f33;
+    --border: rgba(0,200,255,0.15);
+    --accent: #00c8ff;
+    --accent2: #ff6b00;
+    --accent3: #00ff9d;
+    --danger: #ff3c3c;
+    --warn: #ffb800;
+    --text: #e0f0ff;
+    --text-dim: #5a7a99;
+    --text-mid: #8ab0cc;
+    --glow: 0 0 20px rgba(0,200,255,0.4);
+    --glow2: 0 0 20px rgba(255,107,0,0.4);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Exo 2', sans-serif;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* ─── GRID BACKGROUND ─── */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,200,255,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,200,255,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  /* ─── SCROLLBAR ─── */
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 3px; }
+
+  /* ─── PAGE SYSTEM ─── */
+  .page { display: none; min-height: 100vh; position: relative; z-index: 1; }
+  .page.active { display: block; }
+
+  /* ═══════════════════════════════════════════
+     LANDING PAGE
+  ═══════════════════════════════════════════ */
+
+  /* NAV */
+  nav {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 40px; height: 64px;
+    background: rgba(5,11,20,0.9);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+  }
+  .nav-logo {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.4rem; font-weight: 700;
+    color: var(--accent); letter-spacing: 2px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .nav-logo .bolt {
+    width: 28px; height: 28px;
+    background: var(--accent);
+    clip-path: polygon(60% 0%, 100% 0%, 40% 50%, 80% 50%, 0% 100%, 30% 50%, -10% 50%);
+    display: inline-block;
+    animation: pulse-bolt 2s ease-in-out infinite;
+  }
+  @keyframes pulse-bolt {
+    0%,100% { opacity: 1; filter: drop-shadow(0 0 6px var(--accent)); }
+    50% { opacity: 0.7; filter: drop-shadow(0 0 12px var(--accent)); }
+  }
+  .nav-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem; color: var(--text-dim);
+    border: 1px solid var(--border);
+    padding: 2px 8px; border-radius: 2px; letter-spacing: 1px;
+  }
+
+  /* HERO */
+  .hero {
+    min-height: 100vh;
+    display: flex; flex-direction: column; justify-content: center;
+    align-items: flex-start;
+    padding-top: calc(64px + 25px);
+    padding-bottom: 80px;
+    padding-left: 8%; padding-right: 8%;
+    position: relative; overflow: hidden;
+  }
+
+  .hero-bg-orb {
+    position: absolute;
+    width: 600px; height: 600px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(0,200,255,0.08) 0%, transparent 70%);
+    top: -100px; right: -100px;
+    animation: orb-drift 8s ease-in-out infinite;
+  }
+  .hero-bg-orb2 {
+    position: absolute;
+    width: 400px; height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(255,107,0,0.06) 0%, transparent 70%);
+    bottom: 50px; left: 10%;
+    animation: orb-drift 10s ease-in-out infinite reverse;
+  }
+  @keyframes orb-drift {
+    0%,100% { transform: translate(0,0) scale(1); }
+    50% { transform: translate(20px,-20px) scale(1.05); }
+  }
+
+  /* Transmission line decoration */
+  .hero-lines {
+    position: absolute; right: 0; top: 64px; bottom: -205px; width: 45%;
+    overflow: hidden; opacity: 0.18;
+  }
+  .hero-lines svg { width: 100%; height: 100%; }
+
+  .tag-system {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem; color: var(--accent);
+    letter-spacing: 3px; text-transform: uppercase;
+    border: 1px solid rgba(0,200,255,0.3);
+    padding: 4px 12px; margin-bottom: 24px;
+    display: inline-block;
+    animation: fade-in 0.8s ease forwards;
+  }
+  .tag-system::before { content: '// '; opacity: 0.5; }
+
+  .hero-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: clamp(2rem, 5vw, 4rem);
+    font-weight: 700; line-height: 1.1;
+    max-width: 880px;
+    animation: slide-up 0.8s ease 0.2s both;
+  }
+  .hero-title .highlight {
+    color: var(--accent);
+    text-shadow: var(--glow);
+  }
+  .hero-title .highlight2 { color: var(--accent2); }
+
+  .hero-subtitle {
+    margin-top: 20px;
+    font-size: 1rem; color: var(--text-mid);
+    max-width: 560px; line-height: 1.7;
+    font-weight: 300;
+    animation: slide-up 0.8s ease 0.4s both;
+  }
+
+  .hero-subtitle .hl {
+  color: var(--text);
+  background: rgba(0,200,255,0.1);
+  border: 1px solid rgba(0,200,255,0.25);
+  padding: 1px 7px;
+  border-radius: 2px;
+  font-weight: 400;
+  white-space: nowrap;
+  }
+
+  .hero-subtitle .hl-orange {
+    color: var(--accent2);
+    border-bottom: 1px solid var(--accent2);
+    padding-bottom: 1px;
+    font-weight: 600;
+  }
+
+  .hero-kv {
+    margin-top: 8px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.8rem; color: var(--text-dim);
+    animation: slide-up 0.8s ease 0.5s both;
+  }
+
+  .hero-stats {
+    margin-top: 36px;
+    display: flex; gap: 32px; flex-wrap: wrap;
+    animation: slide-up 0.8s ease 0.6s both;
+  }
+  .stat-box {
+    border-left: 2px solid var(--accent);
+    padding-left: 16px;
+  }
+  .stat-box .num {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.8rem; font-weight: 700; color: var(--accent);
+    line-height: 1;
+  }
+  .stat-box .lbl {
+    font-size: 0.7rem; color: var(--text-dim);
+    letter-spacing: 1px; text-transform: uppercase;
+  }
+
+  .hero-cta {
+    margin-top: 48px;
+    display: flex; gap: 16px; flex-wrap: wrap;
+    animation: slide-up 0.8s ease 0.7s both;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: var(--bg); font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem; font-weight: 700; letter-spacing: 2px;
+    border: none; padding: 14px 36px;
+    cursor: pointer; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+    transition: all 0.3s; position: relative; overflow: hidden;
+  }
+  .btn-primary::after {
+    content: ''; position: absolute; inset: 0;
+    background: rgba(255,255,255,0.1);
+    transform: translateX(-100%);
+    transition: transform 0.3s;
+  }
+  .btn-primary:hover::after { transform: translateX(0); }
+  .btn-primary:hover { box-shadow: var(--glow); }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--text); font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem; font-weight: 600; letter-spacing: 2px;
+    border: 1px solid var(--border); padding: 14px 36px;
+    cursor: pointer; text-transform: uppercase;
+    clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 0 100%);
+    transition: all 0.3s;
+  }
+  .btn-outline:hover { border-color: var(--accent); color: var(--accent); }
+
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slide-up { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ABOUT SECTION */
+  section { padding: 80px 8%; }
+  .section-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem; color: var(--accent2);
+    letter-spacing: 3px; text-transform: uppercase;
+    margin-bottom: 12px;
+  }
+  .section-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2rem; font-weight: 700; color: var(--text);
+    margin-bottom: 24px;
+  }
+
+  /* FEATURE CARDS */
+  .features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1px; margin-top: 40px;
+    background: var(--border);
+  }
+  .feat-card {
+    background: var(--surface);
+    padding: 32px; position: relative; overflow: hidden;
+    transition: background 0.3s;
+  }
+  .feat-card::before {
+    content: ''; position: absolute;
+    top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+    transform: scaleX(0); transform-origin: left;
+    transition: transform 0.4s;
+  }
+  .feat-card:hover::before { transform: scaleX(1); }
+  .feat-card:hover { background: var(--surface2); }
+  .feat-icon {
+    font-size: 1.8rem; margin-bottom: 16px;
+    display: block;
+  }
+  .feat-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1rem; font-weight: 700;
+    color: var(--accent); margin-bottom: 10px; letter-spacing: 1px;
+  }
+  .feat-desc { font-size: 0.85rem; color: var(--text-mid); line-height: 1.7; }
+
+  /* ARCHITECTURE SECTION */
+  .arch-section { background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+  .arch-flow {
+    display: flex; align-items: center; gap: 0;
+    margin-top: 40px; overflow-x: auto; padding-bottom: 16px;
+  }
+  .arch-step {
+    flex: 1; min-width: 140px;
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 20px 16px; text-align: center; position: relative;
+  }
+  .arch-step .step-num {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem; color: var(--text-dim);
+    display: block; margin-bottom: 8px;
+  }
+  .arch-step .step-icon { font-size: 1.5rem; display: block; margin-bottom: 8px; }
+  .arch-step .step-name {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem; font-weight: 700; color: var(--accent);
+    display: block; letter-spacing: 1px;
+  }
+  .arch-step .step-sub { font-size: 0.7rem; color: var(--text-dim); margin-top: 4px; display: block; }
+  .arch-arrow {
+    color: var(--accent); font-size: 1.2rem; padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* UPLOAD SECTION */
+  .upload-section { }
+  .upload-container {
+    margin-top: 40px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 0; overflow: hidden;
+  }
+  .upload-header {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .upload-header-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1rem; font-weight: 700; letter-spacing: 2px;
+    color: var(--accent);
+  }
+  .upload-header-sub { font-size: 0.75rem; color: var(--text-dim); font-family: 'Share Tech Mono', monospace; }
+
+  .upload-body { padding: 32px; }
+  .upload-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 20px; margin-bottom: 28px;
+  }
+
+  .file-drop {
+    border: 1px dashed rgba(0,200,255,0.25);
+    background: rgba(0,200,255,0.02);
+    padding: 28px 20px; text-align: center;
+    cursor: pointer; transition: all 0.3s;
+    position: relative; overflow: hidden;
+  }
+  .file-drop:hover, .file-drop.dragover {
+    border-color: var(--accent);
+    background: rgba(0,200,255,0.06);
+    box-shadow: inset 0 0 20px rgba(0,200,255,0.05);
+  }
+  .file-drop input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer;
+  }
+  .file-ext {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.8rem; font-weight: 700;
+    color: var(--accent); display: block; margin-bottom: 8px;
+  }
+  .file-name-label { font-size: 0.8rem; color: var(--text-dim); display: block; margin-bottom: 6px; }
+  .file-status {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem; color: var(--text-dim);
+  }
+  .file-status.uploaded { color: var(--accent3); }
+
+  .file-desc { font-size: 0.7rem; color: var(--text-dim); margin-top: 8px; display: block; }
+
+  .upload-info {
+    background: rgba(0,200,255,0.04);
+    border-left: 2px solid var(--accent);
+    padding: 12px 16px; margin-bottom: 24px;
+    font-size: 0.8rem; color: var(--text-mid); line-height: 1.6;
+    font-family: 'Share Tech Mono', monospace;
+  }
+
+  .btn-analyze {
+    width: 100%; background: linear-gradient(90deg, #00c8ff, #0080ff);
+    color: var(--bg); font-family: 'Rajdhani', sans-serif;
+    font-size: 1.1rem; font-weight: 700; letter-spacing: 3px;
+    border: none; padding: 18px; cursor: pointer; text-transform: uppercase;
+    position: relative; overflow: hidden; transition: all 0.3s;
+    clip-path: polygon(0 0, calc(100% - 16px) 0, 100% 16px, 100% 100%, 16px 100%, 0 calc(100% - 16px));
+  }
+  .btn-analyze:disabled { opacity: 0.4; cursor: not-allowed; }
+  .btn-analyze:not(:disabled):hover { box-shadow: var(--glow); filter: brightness(1.1); }
+
+  /* LOADING OVERLAY */
+  .loading-overlay {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(5,11,20,0.95);
+    flex-direction: column; align-items: center; justify-content: center;
+  }
+  .loading-overlay.active { display: flex; }
+  .load-ring {
+    width: 80px; height: 80px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+    margin-bottom: 24px;
+  }
+  .load-ring2 {
+    position: absolute;
+    width: 60px; height: 60px;
+    border: 2px solid var(--border);
+    border-bottom-color: var(--accent2);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite reverse;
+  }
+  .load-wrap { position: relative; display: flex; align-items: center; justify-content: center; margin-bottom: 24px; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .load-text {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.85rem; color: var(--accent); letter-spacing: 2px;
+  }
+  .load-steps { margin-top: 20px; display: flex; flex-direction: column; gap: 8px; width: 300px; }
+  .load-step {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem; color: var(--text-dim);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .load-step.done { color: var(--accent3); }
+  .load-step.active { color: var(--accent); }
+  .load-step-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+  .load-step.active .load-step-dot { animation: blink 0.8s ease-in-out infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.2; } }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 24px 8%;
+    display: flex; justify-content: space-between; align-items: center;
+    flex-wrap: wrap; gap: 12px;
+  }
+  footer .copy {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem; color: var(--text-dim);
+  }
+  .pln-badge {
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--text-dim);
+  }
+  .pln-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent3); animation: blink 2s ease-in-out infinite; }
+
+  /* ═══════════════════════════════════════════
+     RESULTS PAGE
+  ═══════════════════════════════════════════ */
+  #resultsPage { background: var(--bg); }
+
+  .results-nav {
+    position: sticky; top: 0; z-index: 100;
+    background: rgba(5,11,20,0.95);
+    border-bottom: 1px solid var(--border);
+    backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 32px; height: 56px;
+  }
+  .results-nav .back-btn {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem; color: var(--accent); cursor: pointer;
+    background: none; border: 1px solid rgba(0,200,255,0.2);
+    padding: 6px 16px; letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .results-nav .back-btn:hover { border-color: var(--accent); background: rgba(0,200,255,0.08); }
+  .results-nav-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.9rem; font-weight: 700; color: var(--text-dim);
+    letter-spacing: 2px;
+  }
+  .results-timestamp {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem; color: var(--text-dim);
+  }
+
+  /* ALERT BANNER */
+  .alert-banner {
+    background: linear-gradient(90deg, rgba(255,60,60,0.15), rgba(255,60,60,0.05));
+    border-left: 3px solid var(--danger);
+    border-bottom: 1px solid rgba(255,60,60,0.2);
+    padding: 16px 32px;
+    display: flex; align-items: center; gap: 20px;
+  }
+  .alert-icon { font-size: 1.8rem; animation: pulse-warn 1.5s ease-in-out infinite; }
+  @keyframes pulse-warn { 0%,100% { opacity: 1; } 50% { opacity: 0.5; } }
+  .alert-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem; color: var(--danger); letter-spacing: 3px; display: block;
+  }
+  .alert-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.4rem; font-weight: 700; color: var(--danger);
+  }
+  .alert-meta { margin-left: auto; text-align: right; }
+  .alert-conf {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 2rem; font-weight: 700; color: var(--danger);
+    line-height: 1;
+  }
+  .alert-conf-label { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; color: var(--text-dim); }
+
+  /* RESULTS GRID */
+  .results-body { padding: 28px 32px; display: flex; flex-direction: column; gap: 24px; }
+
+  .r-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .r-grid { grid-template-columns: 1fr; } }
+  .r-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  @media (max-width: 900px) { .r-grid-3 { grid-template-columns: 1fr; } }
+
+  .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .panel-head {
+    background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .panel-title {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 0.85rem; font-weight: 700;
+    color: var(--text); letter-spacing: 2px; text-transform: uppercase;
+  }
+  .panel-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.6rem; color: var(--accent); border: 1px solid rgba(0,200,255,0.3);
+    padding: 2px 8px; border-radius: 2px;
+  }
+  .panel-body { padding: 20px; }
+
+  /* CLASSIFICATION RESULT */
+  .class-result {
+    display: flex; align-items: flex-start; gap: 20px; flex-wrap: wrap;
+  }
+  .class-icon-wrap {
+    width: 80px; height: 80px; flex-shrink: 0;
+    background: rgba(255,60,60,0.1); border: 1px solid rgba(255,60,60,0.3);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2.5rem;
+  }
+  .class-main {
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 1.4rem; font-weight: 700; color: var(--danger); line-height: 1.2;
+  }
+  .class-sub { font-size: 0.8rem; color: var(--text-mid); margin-top: 6px; line-height: 1.6; }
+  .class-type {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem; color: var(--accent);
+    background: rgba(0,200,255,0.08);
+    border: 1px solid rgba(0,200,255,0.2);
+    padding: 2px 10px; display: inline-block; margin-top: 8px;
+  }
+
+  /* CONFIDENCE BARS */
+  .conf-list { display: flex; flex-direction: column; gap: 12px; }
+  .conf-row { }
+  .conf-row-head {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px;
+  }
+  .conf-label { font-size: 0.78rem; color: var(--text-mid); font-family: 'Exo 2', sans-serif; }
+  .conf-pct {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.75rem; color: var(--text);
+  }
+  .conf-bar-bg { background: rgba(255,255,255,0.05); height: 6px; border-radius: 0; overflow: hidden; }
+  .conf-bar-fill {
+    height: 100%; border-radius: 0;
+    animation: bar-grow 1s ease forwards;
+    transform-origin: left;
+  }
+  @keyframes bar-grow { from { width: 0 !important; } }
+
+  /* WAVEFORM / SIGNAL CHART */
+  .waveform-container { }
+  .waveform-channels { display: flex; flex-direction: column; gap: 16px; }
+  .waveform-ch { }
+  .waveform-ch-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.65rem; color: var(--text-dim);
+    margin-bottom: 6px; display: flex; justify-content: space-between;
+  }
+  .waveform-ch-label .ch-value { color: var(--accent); }
+  canvas.waveform { width: 100%; height: 80px; display: block; }
+
+  /* FAULT PARAMS TABLE */
+  .param-table { width: 100%; border-collapse: collapse; }
+  .param-table tr { border-bottom: 1px solid rgba(255,255,255,0.04); }
+  .param-table tr:last-child { border-bottom: none; }
+  .param-table td { padding: 10px 12px; font-size: 0.8rem; vertical-align: top; }
+  .param-table td:first-child { color: var(--text-dim); font-family: 'Share Tech Mono', monospace; font-size: 0.72rem; width: 45%; }
+  .param-table td:last-child { color: var(--text); font-weight: 500; }
+  .val-warn { color: var(--danger) !important; }
+  .val-ok { color: var(--accent3) !important; }
+  .val-caution { color: var(--warn) !important; }
+
+  /* CNN ARCHITECTURE VIZ */
+  .cnn-viz { display: flex; align-items: center; gap: 6px; overflow-x: auto; padding: 12px 0; }
+  .cnn-layer {
+    display: flex; flex-direction: column; align-items: center; flex-shrink: 0;
+  }
+  .cnn-block {
+    border: 1px solid;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.55rem; text-align: center;
+    line-height: 1.3; padding: 4px;
+  }
+  .cnn-block-label { font-size: 0.6rem; color: var(--text-dim); margin-top: 5px; text-align: center; max-width: 70px; }
+  .cnn-arrow-h { color: var(--text-dim); font-size: 0.8rem; flex-shrink: 0; padding: 0 2px; padding-bottom: 20px; }
+
+  /* RECOMMENDATION PANEL */
+  .rec-panel {
+    background: rgba(255,107,0,0.04);
+    border: 1px solid rgba(255,107,0,0.2);
+  }
+  .rec-panel .panel-head { background: rgba(255,107,0,0.08); }
+  .rec-panel .panel-title { color: var(--accent2); }
+
+  .rec-list { display: flex; flex-direction: column; gap: 16px; }
+  .rec-item {
+    display: flex; gap: 16px; align-items: flex-start;
+    padding-bottom: 16px; border-bottom: 1px solid rgba(255,255,255,0.04);
+  }
+  .rec-item:last-child { border-bottom: none; padding-bottom: 0; }
+  .rec-num {
+    width: 28px; height: 28px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Rajdhani', sans-serif; font-size: 0.85rem; font-weight: 700;
+  }
+  .rec-num.crit { background: rgba(255,60,60,0.2); color: var(--danger); border: 1px solid var(--danger); }
+  .rec-num.high { background: rgba(255,184,0,0.2); color: var(--warn); border: 1px solid var(--warn); }
+  .rec-num.med { background: rgba(0,200,255,0.1); color: var(--accent); border: 1px solid var(--accent); }
+  .rec-content { flex: 1; }
+  .rec-title { font-family: 'Rajdhani', sans-serif; font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 4px; }
+  .rec-desc { font-size: 0.78rem; color: var(--text-mid); line-height: 1.6; }
+  .rec-tag {
+    display: inline-block; margin-top: 6px;
+    font-family: 'Share Tech Mono', monospace; font-size: 0.6rem;
+    border: 1px solid rgba(255,255,255,0.1); padding: 2px 8px;
+    color: var(--text-dim);
+  }
+
+  /* TIMELINE */
+  .timeline { display: flex; flex-direction: column; gap: 0; }
+  .tl-row { display: flex; gap: 16px; align-items: flex-start; }
+  .tl-col-time { width: 90px; flex-shrink: 0; }
+  .tl-time {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem; color: var(--accent); padding-top: 12px; text-align: right;
+  }
+  .tl-col-line { width: 24px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+  .tl-dot { width: 10px; height: 10px; border-radius: 50%; border: 2px solid; flex-shrink: 0; margin-top: 14px; }
+  .tl-dot.ev-fault { border-color: var(--danger); background: rgba(255,60,60,0.3); }
+  .tl-dot.ev-relay { border-color: var(--warn); background: rgba(255,184,0,0.3); }
+  .tl-dot.ev-trip { border-color: var(--accent2); background: rgba(255,107,0,0.3); }
+  .tl-dot.ev-reclose { border-color: var(--accent3); background: rgba(0,255,157,0.3); }
+  .tl-line-v { flex: 1; width: 1px; background: rgba(255,255,255,0.06); margin-bottom: 0; }
+  .tl-content { flex: 1; padding: 10px 0 20px; }
+  .tl-ev-title { font-family: 'Rajdhani', sans-serif; font-size: 0.9rem; font-weight: 700; color: var(--text); }
+  .tl-ev-desc { font-size: 0.75rem; color: var(--text-mid); margin-top: 3px; line-height: 1.5; }
+
+  /* COMPONENT CHECKLIST */
+  .check-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .check-item {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    padding: 10px 14px;
+  }
+  .check-icon { font-size: 1rem; }
+  .check-name { font-size: 0.8rem; color: var(--text-mid); font-family: 'Exo 2', sans-serif; flex: 1; }
+  .check-status { font-family: 'Share Tech Mono', monospace; font-size: 0.65rem; }
+  .check-status.damaged { color: var(--danger); }
+  .check-status.check { color: var(--warn); }
+  .check-status.ok { color: var(--accent3); }
+
+  /* EXPORT BAR */
+  .export-bar {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;
+  }
+  .export-label { font-family: 'Rajdhani', sans-serif; font-size: 0.85rem; color: var(--text-dim); letter-spacing: 1px; }
+  .export-btns { display: flex; gap: 10px; }
+  .btn-export {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 0.7rem; color: var(--accent); letter-spacing: 1px;
+    background: none; border: 1px solid rgba(0,200,255,0.3);
+    padding: 8px 16px; cursor: pointer; transition: all 0.2s;
+  }
+  .btn-export:hover { border-color: var(--accent); background: rgba(0,200,255,0.08); }
+
+</style>
+</head>
+<body>
+
+<!-- ─── LOADING OVERLAY ─── -->
+<div class="loading-overlay" id="loadingOverlay">
+  <div class="load-wrap">
+    <div class="load-ring"></div>
+    <div class="load-ring2"></div>
+  </div>
+  <div class="load-text" id="loadText">MEMPROSES DATA COMTRADE...</div>
+  <div class="load-steps" id="loadSteps">
+    <div class="load-step active" id="ls1"><div class="load-step-dot"></div> Parsing file .cfg & .dat...</div>
+    <div class="load-step" id="ls2"><div class="load-step-dot"></div> Ekstraksi fitur sinyal</div>
+    <div class="load-step" id="ls3"><div class="load-step-dot"></div> Preprocessing & normalisasi</div>
+    <div class="load-step" id="ls4"><div class="load-step-dot"></div> Inferensi model CNN 1-D</div>
+    <div class="load-step" id="ls5"><div class="load-step-dot"></div> Generating analisis & rekomendasi</div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     LANDING PAGE
+═══════════════════════════════════════════ -->
+<div id="landingPage" class="page active">
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-logo">
+      <img src="Logo_PLN.png" style="height: 36px; width: auto;" alt="Logo">
+      POWERFAULT<span style="color:var(--text-dim)"> AI</span>
+    </div>
+    <div style="display:flex;gap:16px;align-items:center">
+      <span class="nav-badge">CNN 1-D ENGINE</span>
+      <span class="nav-badge">150 kV ULTG BDG BARAT</span>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-bg-orb"></div>
+    <div class="hero-bg-orb2"></div>
+
+    <!-- SVG Tower decoration -->
+    <div class="hero-lines">
+      <svg viewBox="0 0 400 600" fill="none" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+        <!-- Tower structure -->
+        <line x1="200" y1="50" x2="180" y2="300" stroke="#00c8ff" stroke-width="2"/>
+        <line x1="200" y1="50" x2="220" y2="300" stroke="#00c8ff" stroke-width="2"/>
+        <line x1="180" y1="300" x2="150" y2="580" stroke="#00c8ff" stroke-width="2"/>
+        <line x1="220" y1="300" x2="250" y2="580" stroke="#00c8ff" stroke-width="2"/>
+        <!-- Arms -->
+        <line x1="160" y1="120" x2="240" y2="120" stroke="#00c8ff" stroke-width="2"/>
+        <line x1="150" y1="180" x2="250" y2="180" stroke="#00c8ff" stroke-width="2"/>
+        <line x1="145" y1="240" x2="255" y2="240" stroke="#00c8ff" stroke-width="2"/>
+        <!-- Cross braces -->
+        <line x1="182" y1="160" x2="218" y2="200" stroke="#00c8ff" stroke-width="1"/>
+        <line x1="218" y1="160" x2="182" y2="200" stroke="#00c8ff" stroke-width="1"/>
+        <line x1="183" y1="210" x2="217" y2="250" stroke="#00c8ff" stroke-width="1"/>
+        <line x1="217" y1="210" x2="183" y2="250" stroke="#00c8ff" stroke-width="1"/>
+        <!-- Wires -->
+        <path d="M 20 110 Q 100 140 160 120 Q 200 115 240 120 Q 300 135 380 110" stroke="#00c8ff" stroke-width="1" fill="none"/>
+        <path d="M 20 172 Q 100 202 150 180 Q 200 175 250 180 Q 300 195 380 172" stroke="#00c8ff" stroke-width="1" fill="none"/>
+        <path d="M 20 232 Q 100 262 145 240 Q 200 235 255 240 Q 300 255 380 232" stroke="#00c8ff" stroke-width="1" fill="none"/>
+        <!-- Lightning bolt highlight -->
+        <path d="M 310 60 L 295 120 L 315 120 L 290 190" stroke="#ff6b00" stroke-width="3" fill="none" opacity="0.8"/>
+        <!-- Flash circle -->
+        <circle cx="300" cy="120" r="20" stroke="#ff6b00" stroke-width="1" fill="none" opacity="0.4"/>
+        <circle cx="300" cy="120" r="35" stroke="#ff6b00" stroke-width="0.5" fill="none" opacity="0.2"/>
+        <!-- Insulator dots -->
+        <circle cx="160" cy="124" r="4" fill="#00c8ff" opacity="0.6"/>
+        <circle cx="240" cy="124" r="4" fill="#00c8ff" opacity="0.6"/>
+        <circle cx="150" cy="184" r="4" fill="#00c8ff" opacity="0.6"/>
+        <circle cx="250" cy="184" r="4" fill="#00c8ff" opacity="0.6"/>
+        <circle cx="145" cy="244" r="4" fill="#ff3c3c" opacity="0.8"/>
+        <circle cx="255" cy="244" r="4" fill="#00c8ff" opacity="0.6"/>
+      </svg>
+    </div>
+
+    <div class="tag-system">SISTEM KLASIFIKASI GANGGUAN TRANSMISI</div>
+    <h1 class="hero-title">
+      Deteksi Gangguan Transmisi<br>
+      Tenaga Listrik <span class="highlight">150 kV</span><br>
+      Berbasis <span class="highlight2">AI/ML</span>
+    </h1>
+    <p class="hero-subtitle">
+      Platform analisis cerdas menggunakan <span class="hl">CNN 1-D</span> untuk mengklasifikasikan jenis gangguan pada 
+      <span class="hl-orange">Bay Penghantar ULTG Bandung Barat</span> 
+      secara otomatis dari data rekaman <span class="hl">DFR</span> format 
+      <span class="hl">COMTRADE</span>.
+    </p>
+    <div class="hero-kv">
+      // SUTET 150 kV · DFR COMTRADE · IEEE C37.111 STANDARD
+    </div>
+    <div class="hero-stats">
+      <div class="stat-box">
+        <div class="num">95.7%</div>
+        <div class="lbl">Akurasi Model</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">8</div>
+        <div class="lbl">Kelas Gangguan</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">&lt;2s</div>
+        <div class="lbl">Waktu Inferensi</div>
+      </div>
+      <div class="stat-box">
+        <div class="num">CNN 1-D</div>
+        <div class="lbl">Arsitektur Model</div>
+      </div>
+    </div>
+    <div class="hero-cta">
+      <button class="btn-primary" onclick="scrollToUpload()">▶ MULAI ANALISIS</button>
+      <button class="btn-outline" onclick="scrollToAbout()">PELAJARI SISTEM</button>
+    </div>
+  </section>
+
+  <!-- ABOUT SECTION -->
+  <section id="aboutSection">
+    <div class="section-tag">// TENTANG SISTEM</div>
+    <div class="section-title">Klasifikasi Otomatis Gangguan Transmisi</div>
+    <p style="color:var(--text-mid);font-size:0.9rem;max-width:700px;line-height:1.8;">
+      Sistem ini dikembangkan untuk mengotomatisasi proses analisis gangguan pada jaringan transmisi tenaga listrik 150 kV. Dengan memanfaatkan data rekaman Digital Fault Recorder (DFR) dalam format standar COMTRADE, model CNN 1-D mengekstraksi pola temporal dari sinyal arus dan tegangan untuk mengidentifikasi jenis dan lokasi gangguan secara cepat dan akurat.
+    </p>
+
+    <div class="features-grid">
+      <div class="feat-card">
+        <span class="feat-icon">⚡</span>
+        <div class="feat-title">COMTRADE INPUT</div>
+        <p class="feat-desc">Mendukung format standar IEEE C37.111 COMTRADE dengan parsing otomatis file .cfg (konfigurasi), .dat (data sinyal), dan .hdr (header informasi). Kompatibel dengan output DFR berbagai merek.</p>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">🧠</span>
+        <div class="feat-title">CNN 1-D ENGINE</div>
+        <p class="feat-desc">Arsitektur Convolutional Neural Network 1 Dimensi yang dioptimasi untuk pemrosesan time-series sinyal listrik. Model dilatih menggunakan data historis gangguan nyata ULTG Bandung Barat.</p>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">🔍</span>
+        <div class="feat-title">8 KELAS GANGGUAN</div>
+        <p class="feat-desc">Mengklasifikasikan: Sambaran Petir (Flashover), Gangguan Fasa-Tanah (1Φ-G), Gangguan Fasa-Fasa (2Φ), Fasa-Fasa-Tanah (2Φ-G), 3 Fasa, Gangguan Mekanis, Overload, dan Kondisi Normal.</p>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">📋</span>
+        <div class="feat-title">REKOMENDASI TINDAKAN</div>
+        <p class="feat-desc">Output analisis dilengkapi rekomendasi penanganan berdasarkan jenis gangguan yang terdeteksi, mencakup komponen yang perlu diperiksa, prioritas perbaikan, dan prosedur operasional.</p>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">📊</span>
+        <div class="feat-title">VISUALISASI SINYAL</div>
+        <p class="feat-desc">Menampilkan waveform sinyal arus dan tegangan dari semua fasa, lengkap dengan anotasi titik gangguan, nilai ekstrem, dan perbandingan referensi kondisi normal.</p>
+      </div>
+      <div class="feat-card">
+        <span class="feat-icon">📄</span>
+        <div class="feat-title">LAPORAN OTOMATIS</div>
+        <p class="feat-desc">Generate laporan analisis gangguan dalam format PDF yang siap digunakan untuk dokumentasi teknis, pelaporan ke PLN pusat, dan arsip historis sistem proteksi.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ARCHITECTURE SECTION -->
+  <section class="arch-section">
+    <div class="section-tag">// PIPELINE SISTEM</div>
+    <div class="section-title">Alur Analisis Data</div>
+    <div class="arch-flow">
+      <div class="arch-step">
+        <span class="step-num">01</span>
+        <span class="step-icon">📂</span>
+        <span class="step-name">INPUT</span>
+        <span class="step-sub">COMTRADE<br>.cfg .dat .hdr</span>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-step">
+        <span class="step-num">02</span>
+        <span class="step-icon">⚙️</span>
+        <span class="step-name">PARSING</span>
+        <span class="step-sub">Baca sinyal<br>& metadata</span>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-step">
+        <span class="step-num">03</span>
+        <span class="step-icon">📉</span>
+        <span class="step-name">PRE-PROC</span>
+        <span class="step-sub">Filter & Norm<br>Min-Max</span>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-step">
+        <span class="step-num">04</span>
+        <span class="step-icon">🔢</span>
+        <span class="step-name">WINDOWING</span>
+        <span class="step-sub">Segmentasi<br>jendela sinyal</span>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-step">
+        <span class="step-num">05</span>
+        <span class="step-icon">🧠</span>
+        <span class="step-name">CNN 1-D</span>
+        <span class="step-sub">Inferensi<br>model DL</span>
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-step">
+        <span class="step-num">06</span>
+        <span class="step-icon">📊</span>
+        <span class="step-name">OUTPUT</span>
+        <span class="step-sub">Klasifikasi &<br>Rekomendasi</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- UPLOAD SECTION -->
+  <section id="uploadSection" class="upload-section">
+    <div class="section-tag">// INPUT DATA DFR</div>
+    <div class="section-title">Upload File COMTRADE</div>
+    <p style="color:var(--text-mid);font-size:0.85rem;margin-bottom:0;line-height:1.7;">
+      Upload ketiga file COMTRADE dari Digital Fault Recorder (DFR) sistem proteksi Bay Penghantar ULTG Bandung Barat. Sistem akan otomatis memproses dan menganalisis sinyal rekaman gangguan.
+    </p>
+
+    <div class="upload-container">
+      <div class="upload-header">
+        <span style="font-size:1.2rem">📡</span>
+        <div>
+          <div class="upload-header-title">COMTRADE FILE IMPORT</div>
+          <div class="upload-header-sub">IEEE C37.111 Standard · DFR Recording Data</div>
+        </div>
+      </div>
+      <div class="upload-body">
+        <div class="upload-grid">
+          <!-- CFG -->
+          <div class="file-drop" id="dropCfg" onclick="document.getElementById('fileCfg').click()">
+            <input type="file" id="fileCfg" accept=".cfg" style="display:none">
+            <span class="file-ext">.CFG</span>
+            <span class="file-name-label">File Konfigurasi</span>
+            <span class="file-status" id="statusCfg">Klik atau drag file .cfg di sini</span>
+            <span class="file-desc">Berisi info kanal, frekuensi sampling, skala, waktu awal rekaman</span>
+          </div>
+          <!-- DAT -->
+          <div class="file-drop" id="dropDat" onclick="document.getElementById('fileDat').click()">
+            <input type="file" id="fileDat" accept=".dat" style="display:none">
+            <span class="file-ext">.DAT</span>
+            <span class="file-name-label">File Data Sinyal</span>
+            <span class="file-status" id="statusDat">Klik atau drag file .dat di sini</span>
+            <span class="file-desc">Data time-series sinyal arus dan tegangan semua fasa (A, B, C)</span>
+          </div>
+          <!-- HDR -->
+          <div class="file-drop" id="dropHdr" onclick="document.getElementById('fileHdr').click()">
+            <input type="file" id="fileHdr" accept=".hdr,.HDR" style="display:none">
+            <span class="file-ext">.HDR</span>
+            <span class="file-name-label">File Header</span>
+            <span class="file-status" id="statusHdr">Klik atau drag file .hdr di sini</span>
+            <span class="file-desc">Informasi perangkat DFR, nama bay, lokasi, dan timestamp kejadian</span>
+          </div>
+        </div>
+
+        <div class="upload-info">
+          ℹ️ PANDUAN: Pastikan ketiga file berasal dari satu sesi rekaman DFR yang sama (timestamp identik). Sistem mendukung format Binary dan ASCII COMTRADE. Ukuran file maks: 50 MB per file.
+        </div>
+
+        <button class="btn-analyze" id="btnAnalyze" onclick="startAnalysis()" disabled>
+          ▶ &nbsp; ANALISIS DENGAN CNN 1-D MODEL
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <div class="copy">© 2025 POWERFAULT AI · Tugas Akhir Sistem Tenaga Listrik<br>ULTG Bandung Barat · PLN Transmisi Jawa Bagian Tengah</div>
+    <div class="pln-badge">
+      <div class="pln-dot"></div>
+      SYSTEM ONLINE · CNN 1-D v1.0 · COMTRADE IEEE C37.111
+    </div>
+  </footer>
+
+</div>
+
+<!-- ═══════════════════════════════════════════
+     RESULTS PAGE
+═══════════════════════════════════════════ -->
+<div id="resultsPage" class="page">
+
+  <div class="results-nav">
+    <button class="back-btn" onclick="goBack()">← KEMBALI</button>
+    <div class="results-nav-title">HASIL ANALISIS GANGGUAN — POWERFAULT AI</div>
+    <div class="results-timestamp" id="resTimestamp">—</div>
+  </div>
+
+  <!-- ALERT BANNER -->
+  <div class="alert-banner">
+    <div class="alert-icon">⚠️</div>
+    <div>
+      <span class="alert-label">// GANGGUAN TERDETEKSI · KELAS TINGGI</span>
+      <div class="alert-title">SAMBARAN PETIR — FLASHOVER INSULATOR SUTET</div>
+      <div style="font-size:0.78rem;color:var(--text-mid);margin-top:4px;">
+        Bay Penghantar ULTG Bandung Barat · Fasa A-Tanah (1Φ-G) · Indikasi kerusakan insulator
+      </div>
+    </div>
+    <div class="alert-meta">
+      <div class="alert-conf">96.3%</div>
+      <div class="alert-conf-label">TINGKAT KEYAKINAN</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:0.6rem;color:var(--text-dim);margin-top:4px;">CNN 1-D PREDICTION</div>
+    </div>
+  </div>
+
+  <div class="results-body">
+
+    <!-- ROW 1: Classification + Confidence -->
+    <div class="r-grid">
+
+      <!-- Classification Result -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">🎯 HASIL KLASIFIKASI</div>
+          <div class="panel-badge">OUTPUT CNN 1-D</div>
+        </div>
+        <div class="panel-body">
+          <div class="class-result">
+            <div class="class-icon-wrap">⚡</div>
+            <div>
+              <div class="class-main">Flashover Akibat<br>Sambaran Petir</div>
+              <div class="class-type">KATEGORI: GANGGUAN EKSTERNAL · TRANSIEN TEGANGAN TINGGI</div>
+              <div class="class-sub">
+                Sinyal menunjukkan karakteristik impuls tegangan tinggi frekuensi rendah (≈0.8–10 μs rise time) yang khas pada indirect/direct lightning stroke. Arus impuls gangguan terdeteksi sangat besar pada Fasa A sebelum operasi rele jarak. Pola gelombang konsisten dengan mekanisme Back Flashover pada insulator SUTET 150 kV.
+              </div>
+              <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap">
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;padding:3px 10px;border:1px solid rgba(255,60,60,0.4);color:var(--danger);">FASA TERDAMPAK: A</span>
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;padding:3px 10px;border:1px solid rgba(0,200,255,0.3);color:var(--accent);">JENIS: 1Φ-G</span>
+                <span style="font-family:'Share Tech Mono',monospace;font-size:0.65rem;padding:3px 10px;border:1px solid rgba(255,184,0,0.3);color:var(--warn);">DURASI: 68 ms</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confidence -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">📊 DISTRIBUSI PROBABILITAS KELAS</div>
+          <div class="panel-badge">SOFTMAX OUTPUT</div>
+        </div>
+        <div class="panel-body">
+          <div class="conf-list">
+            <div class="conf-row">
+              <div class="conf-row-head">
+                <span class="conf-label">⚡ Sambaran Petir / Flashover</span>
+                <span class="conf-pct" style="color:var(--danger)">96.3%</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:96.3%;background:var(--danger)"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-row-head">
+                <span class="conf-label">Gangguan Fasa-Tanah (1Φ-G)</span>
+                <span class="conf-pct">2.1%</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:2.1%;background:var(--warn)"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-row-head">
+                <span class="conf-label">Gangguan Fasa-Fasa (2Φ)</span>
+                <span class="conf-pct">0.8%</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:0.8%;background:var(--accent)"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-row-head">
+                <span class="conf-label">Fasa-Fasa-Tanah (2Φ-G)</span>
+                <span class="conf-pct">0.5%</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:0.5%;background:var(--accent)"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-row-head">
+                <span class="conf-label">3 Fasa (3Φ-G)</span>
+                <span class="conf-pct">0.2%</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:0.2%;background:var(--text-dim)"></div></div>
+            </div>
+            <div class="conf-row">
+              <div class="conf-row-head">
+                <span class="conf-label">Gangguan Mekanis / Lainnya</span>
+                <span class="conf-pct">0.1%</span>
+              </div>
+              <div class="conf-bar-bg"><div class="conf-bar-fill" style="width:0.1%;background:var(--text-dim)"></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 2: Waveform -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">📈 WAVEFORM SINYAL DFR</div>
+        <div style="display:flex;gap:8px">
+          <div class="panel-badge">IA · IB · IC · VA · VB · VC</div>
+        </div>
+      </div>
+      <div class="panel-body">
+        <div class="waveform-channels">
+          <div class="waveform-ch">
+            <div class="waveform-ch-label">
+              <span>ARUS FASA A (IA) — <span style="color:var(--danger)">TERDAMPAK</span></span>
+              <span class="ch-value">PEAK: 12.8 kA</span>
+            </div>
+            <canvas id="wave-ia" class="waveform"></canvas>
+          </div>
+          <div class="waveform-ch">
+            <div class="waveform-ch-label">
+              <span>ARUS FASA B (IB)</span>
+              <span class="ch-value">PEAK: 842 A</span>
+            </div>
+            <canvas id="wave-ib" class="waveform"></canvas>
+          </div>
+          <div class="waveform-ch">
+            <div class="waveform-ch-label">
+              <span>ARUS FASA C (IC)</span>
+              <span class="ch-value">PEAK: 761 A</span>
+            </div>
+            <canvas id="wave-ic" class="waveform"></canvas>
+          </div>
+          <div class="waveform-ch">
+            <div class="waveform-ch-label">
+              <span>TEGANGAN FASA A (VA) — <span style="color:var(--danger)">DROP SIGNIFIKAN</span></span>
+              <span class="ch-value">MIN: 12.3 kV</span>
+            </div>
+            <canvas id="wave-va" class="waveform"></canvas>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:20px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);">
+          <span>⬛ <span style="color:var(--danger)">—</span> Titik gangguan (t=0ms)</span>
+          <span>Duration rekaman: 200ms · Sampling: 4000 Hz · Kanal: 6 Analog + 4 Digital</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 3: Parameters + Timeline -->
+    <div class="r-grid">
+
+      <!-- Fault Parameters -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">📋 PARAMETER GANGGUAN</div>
+          <div class="panel-badge">COMTRADE EXTRACTED</div>
+        </div>
+        <div class="panel-body">
+          <table class="param-table">
+            <tr><td>Timestamp Kejadian</td><td>2024-11-14 · 23:41:07.332</td></tr>
+            <tr><td>Bay / Penyulang</td><td>Bay Penghantar BDG Barat T.1</td></tr>
+            <tr><td>Gardu Induk</td><td>GI Cibabat 150 kV (ULTG BDG Barat)</td></tr>
+            <tr><td>Fasa Terdampak</td><td class="val-warn">Fasa A (Earth Fault)</td></tr>
+            <tr><td>Arus Gangguan Maks.</td><td class="val-warn">12.83 kA (7.6× In)</td></tr>
+            <tr><td>Tegangan Fasa A saat Fault</td><td class="val-warn">12.3 kV (↓82% dari nominal)</td></tr>
+            <tr><td>Durasi Gangguan</td><td class="val-warn">68 ms</td></tr>
+            <tr><td>Waktu Trip PMT</td><td>72 ms (Rele Jarak Zona 1)</td></tr>
+            <tr><td>Waktu Reclose (AR)</td><td class="val-caution">AR Gagal (Permanent Fault)</td></tr>
+            <tr><td>Impedansi Loop Gangguan</td><td class="val-warn">Z = 3.2 + j14.7 Ω</td></tr>
+            <tr><td>Estimasi Lokasi Gangguan</td><td class="val-warn">±24.3 km dari GI Cibabat</td></tr>
+            <tr><td>Rele Operasi</td><td>Rele Jarak Z1 + Rele Tanah</td></tr>
+            <tr><td>Sampling Rate DFR</td><td class="val-ok">4000 Hz (80 s/cycle)</td></tr>
+            <tr><td>Format File</td><td class="val-ok">COMTRADE IEEE C37.111-1999</td></tr>
+          </table>
+        </div>
+      </div>
+
+      <!-- Event Timeline -->
+      <div class="panel">
+        <div class="panel-head">
+          <div class="panel-title">⏱ URUTAN KEJADIAN (SOE)</div>
+          <div class="panel-badge">SEQUENCE OF EVENTS</div>
+        </div>
+        <div class="panel-body">
+          <div class="timeline">
+            <div class="tl-row">
+              <div class="tl-col-time"><div class="tl-time">t = -15ms</div></div>
+              <div class="tl-col-line"><div class="tl-dot ev-fault"></div><div class="tl-line-v"></div></div>
+              <div class="tl-content">
+                <div class="tl-ev-title">⚡ Sambaran Petir Terdeteksi</div>
+                <div class="tl-ev-desc">Impuls tegangan tinggi masuk ke konduktor Fasa A. Overvoltage melampaui BIL insulator string (±700 kV peak, estimasi).</div>
+              </div>
+            </div>
+            <div class="tl-row">
+              <div class="tl-col-time"><div class="tl-time">t = 0ms</div></div>
+              <div class="tl-col-line"><div class="tl-dot ev-fault"></div><div class="tl-line-v"></div></div>
+              <div class="tl-content">
+                <div class="tl-ev-title">🔥 Flashover Insulator — Fasa A ke Tower</div>
+                <div class="tl-ev-desc">Isolasi insulator string breakdown. Terjadi busur api (arc) dari konduktor ke cross-arm tower. Arus gangguan 12.83 kA mengalir ke tanah.</div>
+              </div>
+            </div>
+            <div class="tl-row">
+              <div class="tl-col-time"><div class="tl-time">t = +8ms</div></div>
+              <div class="tl-col-line"><div class="tl-dot ev-relay"></div><div class="tl-line-v"></div></div>
+              <div class="tl-content">
+                <div class="tl-ev-title">🟡 Pick-up Rele Jarak Zona 1</div>
+                <div class="tl-ev-desc">Distance Relay mendeteksi impedansi loop rendah. Starting element aktif. Rele arus lebih tanah (REF) juga pick-up.</div>
+              </div>
+            </div>
+            <div class="tl-row">
+              <div class="tl-col-time"><div class="tl-time">t = +72ms</div></div>
+              <div class="tl-col-line"><div class="tl-dot ev-trip"></div><div class="tl-line-v"></div></div>
+              <div class="tl-content">
+                <div class="tl-ev-title">🔴 Trip PMT Fasa A</div>
+                <div class="tl-ev-desc">Pemutus Tenaga (PMT/CB) Fasa A membuka. Busur api padam. Sistem beroperasi 2 fasa sementara.</div>
+              </div>
+            </div>
+            <div class="tl-row">
+              <div class="tl-col-time"><div class="tl-time">t = +872ms</div></div>
+              <div class="tl-col-line"><div class="tl-dot ev-reclose"></div><div class="tl-line-v"></div></div>
+              <div class="tl-content">
+                <div class="tl-ev-title">❌ Auto-Reclose (AR) Gagal</div>
+                <div class="tl-ev-desc">PMT coba tutup ulang namun rele langsung trip kembali — mengindikasikan gangguan permanen (insulator pecah/konduktor putus). Sistem lock-out.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ROW 4: CNN Architecture -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🧠 ARSITEKTUR CNN 1-D — FEATURE MAP ACTIVATION</div>
+        <div class="panel-badge">MODEL INFERENCE PATH</div>
+      </div>
+      <div class="panel-body">
+        <div class="cnn-viz">
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:60px;height:90px;border-color:var(--text-dim);color:var(--text-dim);">INPUT<br>6ch<br>400pts</div>
+            <div class="cnn-block-label">Input Signal</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:55px;height:80px;border-color:var(--accent);color:var(--accent);">CONV1<br>64f<br>k=5</div>
+            <div class="cnn-block-label">Conv + ReLU</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:44px;height:70px;border-color:var(--accent);color:var(--accent);">MP1<br>k=2</div>
+            <div class="cnn-block-label">MaxPool</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:55px;height:80px;border-color:#00b4e8;color:#00b4e8;">CONV2<br>128f<br>k=3</div>
+            <div class="cnn-block-label">Conv + BN + ReLU</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:44px;height:68px;border-color:#00b4e8;color:#00b4e8;">MP2<br>k=2</div>
+            <div class="cnn-block-label">MaxPool</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:55px;height:74px;border-color:#0090cc;color:#0090cc;">CONV3<br>256f<br>k=3</div>
+            <div class="cnn-block-label">Conv + BN + ReLU</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:44px;height:60px;border-color:#0070aa;color:#0070aa;">GAP</div>
+            <div class="cnn-block-label">Global Avg Pool</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:50px;height:68px;border-color:var(--accent2);color:var(--accent2);">FC1<br>128</div>
+            <div class="cnn-block-label">Dense + Dropout</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:50px;height:60px;border-color:var(--accent2);color:var(--accent2);">FC2<br>64</div>
+            <div class="cnn-block-label">Dense + ReLU</div>
+          </div>
+          <div class="cnn-arrow-h">→</div>
+          <div class="cnn-layer">
+            <div class="cnn-block" style="width:55px;height:80px;border-color:var(--danger);color:var(--danger);font-size:0.6rem;">OUT<br>8 cls<br>96.3%</div>
+            <div class="cnn-block-label">Softmax · Flashover</div>
+          </div>
+        </div>
+        <div style="margin-top:12px;font-family:'Share Tech Mono',monospace;font-size:0.65rem;color:var(--text-dim);">
+          Total Parameter: 1,247,432 · Optimizer: Adam (lr=0.001) · Loss: Categorical Crossentropy · Epochs: 150 · Train Acc: 97.2% · Val Acc: 95.7%
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 5: Component Check -->
+    <div class="panel">
+      <div class="panel-head">
+        <div class="panel-title">🔧 STATUS KOMPONEN SUTET — PERLU INSPEKSI</div>
+        <div class="panel-badge">BERDASARKAN ANALISIS GANGGUAN</div>
+      </div>
+      <div class="panel-body">
+        <div class="check-grid">
+          <div class="check-item">
+            <span class="check-icon">🔴</span>
+            <span class="check-name">Insulator String Fasa A</span>
+            <span class="check-status damaged">DIDUGA PECAH</span>
+          </div>
+          <div class="check-item">
+            <span class="check-icon">🟡</span>
+            <span class="check-name">Konduktor Fasa A (Arcing)</span>
+            <span class="check-status check">PERIKSA SEGERA</span>
+          </div>
+          <div class="check-item">
+            <span class="check-icon">🟡</span>
+            <span class="check-name">Tower Cross-Arm (Arcing)</span>
+            <span class="check-status check">PERIKSA SEGERA</span>
+          </div>
+          <div class="check-item">
+            <span class="check-icon">🟡</span>
+            <span class="check-name">Arrester / Surge Arrester</span>
+            <span class="check-status check">UJI FUNGSI</span>
+          </div>
+          <div class="check-item">
+            <span class="check-icon">🟡</span>
+            <span class="check-name">Grounding Tower</span>
+            <span class="check-status check">UKUR TAHANAN</span>
+          </div>
+          <div class="check-item">
+            <span class="check-icon">🟢</span>
+            <span class="check-name">Fasa B — Konduktor & Insulator</span>
+            <span class="check-status ok">NORMAL</span>
+          </div>
+          <div class="check-item">
+            <span class="check-icon">🟢</span>
+            <span class="check-name">Fasa C — Konduktor & Insulator</span>
+            <span class="check-status ok">NORMAL</span>
+          </div>
+          <div class="check-item">
+            <span class="check-icon">🟢</span>
+            <span class="check-name">PMT / Circuit Breaker</span>
+            <span class="check-status ok">OPERASI NORMAL</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ROW 6: Recommendations -->
+    <div class="panel rec-panel">
+      <div class="panel-head">
+        <div class="panel-title">📋 REKOMENDASI TINDAKAN</div>
+        <div class="panel-badge" style="color:var(--accent2);border-color:rgba(255,107,0,0.3)">PRIORITAS TERTINGGI</div>
+      </div>
+      <div class="panel-body">
+        <div class="rec-list">
+
+          <div class="rec-item">
+            <div class="rec-num crit">1</div>
+            <div class="rec-content">
+              <div class="rec-title">🚨 KOORDINASI PEMADAMAN & PATROLI LAPANGAN SEGERA</div>
+              <div class="rec-desc">Ajukan LOTO (Lockout/Tagout) dan koordinasi ke Dispatcher untuk pemadaman aman. Kirimkan tim patroli lapangan ke estimasi lokasi gangguan (±24.3 km dari GI Cibabat) pada jalur penghantar BDG Barat T.1. AR gagal mengindikasikan gangguan permanen — sistem tidak boleh dienergize ulang sebelum inspeksi visual.</div>
+              <span class="rec-tag">PRIORITAS: CRITICAL · WAKTU: SEGERA (&lt;2 JAM)</span>
+            </div>
+          </div>
+
+          <div class="rec-item">
+            <div class="rec-num crit">2</div>
+            <div class="rec-content">
+              <div class="rec-title">🔍 INSPEKSI INSULATOR FASA A — DUGAAN PECAH/RETAK</div>
+              <div class="rec-desc">Berdasarkan pola arus impuls dan kegagalan AR, besar kemungkinan terjadi kerusakan fisik pada insulator string Fasa A berupa pecah (shattering) atau retak akibat termal arc flash. Lakukan inspeksi visual dari tanah menggunakan binocular, atau menggunakan drone jika tersedia. Identifikasi nomor tower dan catat kondisi insulator tiap tower di sekitar titik gangguan estimasi. Siapkan insulator pengganti (tipe sesuai spesifikasi SUTET 150 kV) sebelum berangkat.</div>
+              <span class="rec-tag">PRIORITAS: CRITICAL · TIM: PENYELIA + TEKNISI SUTET</span>
+            </div>
+          </div>
+
+          <div class="rec-item">
+            <div class="rec-num high">3</div>
+            <div class="rec-content">
+              <div class="rec-title">📏 PENGUKURAN TAHANAN GROUNDING TOWER</div>
+              <div class="rec-desc">Lightning-caused back flashover umumnya diperparah oleh tahanan grounding tower yang tinggi (>10 Ω). Lakukan pengukuran tahanan grounding seluruh tower di sekitar titik gangguan menggunakan earth tester metode Fall-of-Potential atau Stakeless Clamp. Jika tahanan > 10 Ω, lakukan perbaikan grounding (penambahan ground rod, penggunaan konduktif backfill, dll.). Dokumentasikan dan bandingkan dengan baseline pengukuran terakhir.</div>
+              <span class="rec-tag">PRIORITAS: HIGH · ALAT: EARTH TESTER DIGITAL</span>
+            </div>
+          </div>
+
+          <div class="rec-item">
+            <div class="rec-num high">4</div>
+            <div class="rec-content">
+              <div class="rec-title">🛡️ UJI DAN EVALUASI SURGE ARRESTER FASA A</div>
+              <div class="rec-desc">Surge arrester seharusnya menyerap energi surja petir dan mencegah flashover. Jika flashover tetap terjadi, arrester kemungkinan sudah degradasi atau gagal fungsi. Lakukan pengujian: (1) Uji resistansi isolasi, (2) Uji leakage current, (3) Inspeksi visual housing. Bila hasil uji menunjukkan degradasi, ganti arrester. Evaluasi juga rating arrester apakah sesuai dengan level isokeraunic area tersebut.</div>
+              <span class="rec-tag">PRIORITAS: HIGH · STANDAR: IEC 60099-4</span>
+            </div>
+          </div>
+
+          <div class="rec-item">
+            <div class="rec-num med">5</div>
+            <div class="rec-content">
+              <div class="rec-title">⚙️ EVALUASI SETTING RELE PROTEKSI & REKONFIGURASI AR</div>
+              <div class="rec-desc">Verifikasi setting rele jarak (distance relay) apakah sudah optimal untuk jenis gangguan petir yang transient. Pertimbangkan apakah dead time AR (800 ms) sudah cukup untuk deionisasi arc. Analisis koordinasi proteksi dengan gardu induk ujung lainnya. Periksa rekaman DFR dari ujung remote (GI lawan) untuk analisis directional fault.</div>
+              <span class="rec-tag">PRIORITAS: MEDIUM · TIM: ENGINEER PROTEKSI</span>
+            </div>
+          </div>
+
+          <div class="rec-item">
+            <div class="rec-num med">6</div>
+            <div class="rec-content">
+              <div class="rec-title">📊 KAJIAN LIGHTNING PERFORMANCE & PEMASANGAN GSWR</div>
+              <div class="rec-desc">Lakukan kajian lightning performance pada seksi jalur SUTET yang sering terdampak sambaran petir berdasarkan historis data gangguan minimal 5 tahun terakhir. Jika area memiliki IKL (Isokeraunic Level) tinggi, pertimbangkan pemasangan tambahan Ground Shield Wire/Rope (GSWR) atau peningkatan jumlah insulator pada tower-tower di zona rawan. Koordinasikan dengan PLN Transmisi untuk kajian EMTP/ATP.</div>
+              <span class="rec-tag">PRIORITAS: MEDIUM · JANGKA: MENENGAH (1–3 BULAN)</span>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORT BAR -->
+    <div class="export-bar">
+      <div class="export-label">EXPORT LAPORAN ANALISIS</div>
+      <div class="export-btns">
+        <button class="btn-export">📄 PDF REPORT</button>
+        <button class="btn-export">📊 EXCEL DATA</button>
+        <button class="btn-export">🗃️ JSON RAW</button>
+        <button class="btn-export" style="color:var(--accent2);border-color:rgba(255,107,0,0.3)">📧 KIRIM KE DISPATCHER</button>
+      </div>
+    </div>
+
+    <!-- Bottom space -->
+    <div style="height:20px"></div>
+
+  </div>
+</div>
+
+<script>
+  // ─── FILE UPLOAD HANDLING ───
+  const files = { cfg: null, dat: null, hdr: null };
+
+  function setupFileInput(inputId, dropId, statusId, key, ext) {
+    const input = document.getElementById(inputId);
+    const drop = document.getElementById(dropId);
+    const status = document.getElementById(statusId);
+
+    input.addEventListener('change', (e) => {
+      const f = e.target.files[0];
+      if (f) {
+        files[key] = f;
+        status.textContent = '✓ ' + f.name;
+        status.className = 'file-status uploaded';
+        drop.style.borderColor = 'rgba(0,255,157,0.4)';
+        checkAllFiles();
+      }
+    });
+
+    drop.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      drop.classList.add('dragover');
+    });
+    drop.addEventListener('dragleave', () => drop.classList.remove('dragover'));
+    drop.addEventListener('drop', (e) => {
+      e.preventDefault();
+      drop.classList.remove('dragover');
+      const f = e.dataTransfer.files[0];
+      if (f && f.name.toLowerCase().endsWith('.' + ext)) {
+        files[key] = f;
+        status.textContent = '✓ ' + f.name;
+        status.className = 'file-status uploaded';
+        drop.style.borderColor = 'rgba(0,255,157,0.4)';
+        checkAllFiles();
+      }
+    });
+  }
+
+  setupFileInput('fileCfg', 'dropCfg', 'statusCfg', 'cfg', 'cfg');
+  setupFileInput('fileDat', 'dropDat', 'statusDat', 'dat', 'dat');
+  setupFileInput('fileHdr', 'dropHdr', 'statusHdr', 'hdr', 'hdr');
+
+  function checkAllFiles() {
+    const btn = document.getElementById('btnAnalyze');
+    btn.disabled = !(files.cfg && files.dat && files.hdr);
+  }
+
+  // ─── ANALYSIS SIMULATION ───
+  function startAnalysis() {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.add('active');
+
+    const steps = [
+      { id: 'ls1', text: 'Parsing file .cfg & .dat... ✓', delay: 800 },
+      { id: 'ls2', text: 'Ekstraksi fitur sinyal ✓', delay: 1600 },
+      { id: 'ls3', text: 'Preprocessing & normalisasi ✓', delay: 2400 },
+      { id: 'ls4', text: 'Inferensi model CNN 1-D ✓', delay: 3400 },
+      { id: 'ls5', text: 'Generating analisis & rekomendasi ✓', delay: 4200 },
+    ];
+
+    steps.forEach((s, i) => {
+      setTimeout(() => {
+        const el = document.getElementById(s.id);
+        if (i > 0) document.getElementById(steps[i-1].id).className = 'load-step done';
+        el.className = 'load-step active';
+        el.querySelector('.load-step-dot').style.cssText = '';
+        if (i === steps.length - 1) {
+          setTimeout(() => {
+            el.className = 'load-step done';
+            setTimeout(() => showResults(), 600);
+          }, 800);
+        }
+      }, s.delay);
+    });
+  }
+
+  function showResults() {
+    const overlay = document.getElementById('loadingOverlay');
+    overlay.classList.remove('active');
+    document.getElementById('landingPage').classList.remove('active');
+    document.getElementById('resultsPage').classList.add('active');
+    window.scrollTo(0, 0);
+
+    const now = new Date();
+    document.getElementById('resTimestamp').textContent =
+      now.toLocaleDateString('id-ID') + ' · ' + now.toLocaleTimeString('id-ID');
+
+    setTimeout(() => drawWaveforms(), 200);
+  }
+
+  function goBack() {
+    document.getElementById('resultsPage').classList.remove('active');
+    document.getElementById('landingPage').classList.add('active');
+    // reset loading steps
+    for (let i = 1; i <= 5; i++) {
+      const el = document.getElementById('ls' + i);
+      if (el) { el.className = i === 1 ? 'load-step active' : 'load-step'; }
+    }
+    window.scrollTo(0, 0);
+  }
+
+  function scrollToUpload() {
+    document.getElementById('uploadSection').scrollIntoView({ behavior: 'smooth' });
+  }
+  function scrollToAbout() {
+    document.getElementById('aboutSection').scrollIntoView({ behavior: 'smooth' });
+  }
+
+  // ─── WAVEFORM DRAWING ───
+  function drawWaveforms() {
+    drawChannel('wave-ia', 'fault-current');
+    drawChannel('wave-ib', 'normal');
+    drawChannel('wave-ic', 'normal');
+    drawChannel('wave-va', 'voltage-dip');
+  }
+
+  function drawChannel(canvasId, type) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    const W = canvas.offsetWidth, H = 80;
+    canvas.width = W; canvas.height = H;
+
+    const pts = 400;
+    const mid = H / 2;
+
+    ctx.fillStyle = 'rgba(0,0,0,0.3)';
+    ctx.fillRect(0, 0, W, H);
+
+    // Grid
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let x = 0; x < W; x += W / 10) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
+    }
+    ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(W, mid); ctx.stroke();
+
+    // Fault marker
+    const faultX = W * 0.35;
+    ctx.strokeStyle = 'rgba(255,60,60,0.25)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath(); ctx.moveTo(faultX, 0); ctx.lineTo(faultX, H); ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Signal
+    ctx.beginPath();
+    ctx.lineWidth = 1.5;
+
+    if (type === 'normal') {
+      ctx.strokeStyle = '#00c8ff';
+      for (let i = 0; i < pts; i++) {
+        const x = (i / pts) * W;
+        const t = (i / pts) * 4 * Math.PI;
+        const amp = mid * 0.55;
+        const noise = (Math.random() - 0.5) * 2;
+        const y = mid - Math.sin(t) * amp + noise;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+    } else if (type === 'fault-current') {
+      ctx.strokeStyle = '#ff3c3c';
+      for (let i = 0; i < pts; i++) {
+        const x = (i / pts) * W;
+        const t = (i / pts) * 4 * Math.PI;
+        const progress = i / pts;
+        let amp;
+        if (progress < 0.35) {
+          amp = mid * 0.5;
+        } else if (progress < 0.37) {
+          // Spike
+          const spk = (progress - 0.35) / 0.02;
+          amp = mid * 0.5 + spk * mid * 2.5;
+        } else if (progress < 0.65) {
+          // Elevated fault current
+          const decay = Math.exp(-(progress - 0.37) * 6);
+          amp = mid * 0.5 + decay * mid * 1.8 + (Math.random() - 0.5) * 10;
+        } else {
+          amp = mid * 0.08;
+        }
+        const noise = (Math.random() - 0.5) * (progress > 0.35 && progress < 0.65 ? 6 : 2);
+        const y = mid - Math.sin(t) * amp + noise;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+    } else if (type === 'voltage-dip') {
+      ctx.strokeStyle = '#ffb800';
+      for (let i = 0; i < pts; i++) {
+        const x = (i / pts) * W;
+        const t = (i / pts) * 4 * Math.PI;
+        const progress = i / pts;
+        let amp;
+        if (progress < 0.35) {
+          amp = mid * 0.75;
+        } else if (progress < 0.65) {
+          amp = mid * 0.12 + (Math.random() - 0.5) * 4;
+        } else {
+          amp = mid * 0.75;
+        }
+        const noise = (Math.random() - 0.5) * 2;
+        const y = mid - Math.sin(t) * amp + noise;
+        i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+      }
+    }
+
+    ctx.stroke();
+
+    // Fault label
+    if (type === 'fault-current' || type === 'voltage-dip') {
+      ctx.fillStyle = 'rgba(255,60,60,0.7)';
+      ctx.font = '9px "Share Tech Mono"';
+      ctx.fillText('FAULT', faultX + 4, 12);
+    }
+  }
+</script>
+</body>
+</html>
