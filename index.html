@@ -1100,7 +1100,6 @@ function selectTemplate(tpl) {
     el.classList.toggle('selected', t===tpl);
     el.querySelector('.pdf-opt-check').textContent = t===tpl ? '✓' : '';
   });
-  // Auto-toggle sections based on template
   const sections = document.querySelectorAll('.pdf-sec-opt');
   sections.forEach(s => {
     const sec = s.dataset.sec;
@@ -1147,26 +1146,25 @@ function resetPdfProgress() {
   btn.disabled = false; btn.innerHTML = '<span>⬇</span> GENERATE PDF';
 }
 
-// ─── CORE PDF GENERATOR ───
+// ─── CORE PDF GENERATOR (FIXED) ───
 async function generatePDF() {
   const btn = document.getElementById('btnGenPdf');
   btn.disabled = true;
   btn.innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⟳</span> GENERATING...';
 
-  // Collect active sections
   const activeSecs = new Set();
   document.querySelectorAll('.pdf-sec-opt.checked').forEach(el => activeSecs.add(el.dataset.sec));
 
   try {
-    const { jsPDF } = window.jspdf;
+    // FIX BUG 4: Cara aman akses jsPDF dari CDN UMD
+    const jsPDF = window.jspdf?.jsPDF || window.jsPDF;
     if (!jsPDF) throw new Error('jsPDF not loaded');
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-    const W = doc.internal.pageSize.getWidth();   // 297
-    const H = doc.internal.pageSize.getHeight();  // 210
+    const W = doc.internal.pageSize.getWidth();
+    const H = doc.internal.pageSize.getHeight();
     let pageNum = 1;
 
-    // Color helpers
     const C = {
       bg:      [5, 11, 20],
       surface: [12, 24, 41],
@@ -1188,23 +1186,19 @@ async function generatePDF() {
 
     function bgPage() {
       setFill(C.bg); doc.rect(0, 0, W, H, 'F');
-      // Subtle grid
       doc.setLineWidth(0.05); setStroke([0, 30, 50]);
       for (let x=0;x<W;x+=10) { doc.line(x,0,x,H); }
       for (let y=0;y<H;y+=10) { doc.line(0,y,W,y); }
     }
 
     function header(title, subtitle) {
-      // Top bar
       setFill(C.surface2); doc.rect(0, 0, W, 14, 'F');
       setStroke(C.accent); doc.setLineWidth(0.4); doc.line(0, 14, W, 14);
-      // Logo
       setTextColor(C.accent);
       doc.setFont('helvetica','bold'); doc.setFontSize(10);
       doc.text('POWERFAULT AI', 8, 9);
       setTextColor(C.textDim); doc.setFontSize(6); doc.setFont('helvetica','normal');
       doc.text('CNN 1-D ENGINE  |  150 kV ULTG BANDUNG BARAT', 55, 9);
-      // Title area
       setTextColor(C.textDim); doc.setFontSize(5.5);
       doc.text(title.toUpperCase(), W - 8, 6, { align:'right' });
       setTextColor(C.accent2); doc.setFontSize(5);
@@ -1218,14 +1212,12 @@ async function generatePDF() {
       doc.setFont('helvetica','normal');
       doc.text('© 2025 POWERFAULT AI  |  ULTG Bandung Barat  |  PLN Transmisi Jawa Bagian Tengah', 8, H-4);
       doc.text('Halaman ' + page, W-8, H-4, { align:'right' });
-      // Accent line
       setFill(C.accent); doc.rect(0, H-10, 3, 10, 'F');
     }
 
     function panelBox(x, y, w, h, title, badgeText) {
       setFill(C.surface); doc.rect(x, y, w, h, 'F');
       setStroke(C.border); doc.setLineWidth(0.3); doc.rect(x, y, w, h, 'S');
-      // Header bar
       setFill(C.surface2); doc.rect(x, y, w, 7, 'F');
       setStroke(C.accent); doc.setLineWidth(0.3); doc.line(x, y+7, x+w, y+7);
       setTextColor(C.text); doc.setFont('helvetica','bold'); doc.setFontSize(6.5);
@@ -1234,22 +1226,17 @@ async function generatePDF() {
         setTextColor(C.accent); doc.setFont('helvetica','normal'); doc.setFontSize(5);
         doc.text(badgeText, x+w-4, y+4.5, { align:'right' });
       }
-      // Left accent
       setFill(C.accent); doc.rect(x, y, 1.5, 7, 'F');
     }
 
-    function sectionLabel(x, y, text) {
-      setTextColor(C.accent2); doc.setFont('helvetica','normal'); doc.setFontSize(5.5);
-      doc.text('// ' + text.toUpperCase(), x, y);
-    }
-
+    // FIX BUG 5: Set font size DULU sebelum getTextWidth
     function pill(x, y, text, color) {
+      doc.setFontSize(5);
       const tw = doc.getTextWidth(text);
-      setFill([color[0], color[1], color[2], 0.2]);
-      doc.setFillColor(color[0]*.3, color[1]*.3, color[2]*.3);
-      doc.roundedRect(x, y-3.5, tw+6, 5, 1, 1, 'F');
-      setStroke(color); doc.setLineWidth(0.2); doc.roundedRect(x, y-3.5, tw+6, 5, 1, 1, 'S');
-      setTextColor(color); doc.setFontSize(5); doc.text(text, x+3, y);
+      doc.setFillColor(color[0]*0.2, color[1]*0.2, color[2]*0.2); // FIX BUG 7: hapus alpha
+      doc.rect(x, y-3.5, tw+6, 5, 'F');
+      setStroke(color); doc.setLineWidth(0.2); doc.rect(x, y-3.5, tw+6, 5, 'S'); // FIX BUG 3: ganti roundedRect → rect
+      setTextColor(color); doc.text(text, x+3, y);
     }
 
     function progressBar(x, y, w, pct, color) {
@@ -1257,27 +1244,21 @@ async function generatePDF() {
       setFill(color); doc.rect(x, y, w * (pct/100), 2.5, 'F');
     }
 
-    // ─────────────────────────────────────────────
-    // PAGE 1: COVER
-    // ─────────────────────────────────────────────
+    // ── PAGE 1: COVER ──
     if (activeSecs.has('cover')) {
       setPdfProgress(10, 'Membuat halaman cover...');
       await delay(200);
       bgPage();
 
-      // Big accent stripe left
-      const grad = ['#003344','#001a2a'];
       setFill([0, 30, 50]); doc.rect(0, 0, 60, H, 'F');
       setFill(C.accent); doc.rect(0, 0, 3, H, 'F');
 
-      // Vertical text label
       doc.saveGraphicsState();
       doc.setFont('helvetica','bold'); doc.setFontSize(7);
       setTextColor(C.textDim);
       doc.text('POWERFAULT AI  //  LAPORAN ANALISIS GANGGUAN TRANSMISI 150 kV', 5, H/2, { angle:90 });
       doc.restoreGraphicsState();
 
-      // Tower silhouette (lines)
       setStroke([0, 60, 90]); doc.setLineWidth(0.4);
       doc.line(30, 30, 28, 90); doc.line(30, 30, 32, 90);
       doc.line(28, 90, 22, H-20); doc.line(32, 90, 38, H-20);
@@ -1285,33 +1266,26 @@ async function generatePDF() {
       setStroke(C.accent); doc.setLineWidth(0.2);
       doc.line(0, 50, 22, 50); doc.line(0, 65, 22, 65); doc.line(0, 80, 21, 80);
       doc.line(37, 50, 60, 50); doc.line(38, 65, 60, 65); doc.line(39, 80, 60, 80);
-      // Lightning bolt
       setStroke(C.accent2); doc.setLineWidth(1);
       doc.line(27, 38, 24, 52); doc.line(24, 52, 28, 52); doc.line(28, 52, 23, 68);
 
-      // Right content area
-      // Badge
       setFill([0, 40, 60]); doc.rect(68, 28, 80, 8, 'F');
       setStroke(C.accent); doc.setLineWidth(0.3); doc.rect(68, 28, 80, 8, 'S');
       setTextColor(C.accent); doc.setFont('helvetica','normal'); doc.setFontSize(6);
       doc.text('// SISTEM KLASIFIKASI GANGGUAN TRANSMISI', 71, 33.5);
 
-      // Main title
       setTextColor(C.text); doc.setFont('helvetica','bold'); doc.setFontSize(22);
       doc.text('LAPORAN ANALISIS', 68, 55);
       doc.text('GANGGUAN', 68, 70);
       setTextColor(C.accent); doc.setFontSize(22);
       doc.text('TRANSMISI 150 kV', 68, 85);
 
-      // Subtitle
       setTextColor(C.textMid); doc.setFont('helvetica','normal'); doc.setFontSize(8);
       doc.text('Bay Penghantar ULTG Bandung Barat  |  GI Cibabat', 68, 96);
       doc.text('Analisis Otomatis berbasis CNN 1-D Deep Learning', 68, 103);
 
-      // Divider
       setStroke(C.border); doc.setLineWidth(0.5); doc.line(68, 110, 280, 110);
 
-      // Info grid
       const infos = [
         ['JENIS GANGGUAN', 'Flashover / Sambaran Petir', C.danger],
         ['FASA TERDAMPAK', 'Fasa A — Earth Fault (1Φ-G)', C.danger],
@@ -1325,13 +1299,13 @@ async function generatePDF() {
         const row = 115 + Math.floor(i/2) * 12;
         setTextColor(C.textDim); doc.setFont('helvetica','normal'); doc.setFontSize(5.5);
         doc.text(k, col2, row);
-        setFill([col[0]*0.15, col[1]*0.15, col[2]*0.15]);
+        // FIX BUG 7: tidak pakai alpha di setFillColor
+        doc.setFillColor(col[0]*0.15, col[1]*0.15, col[2]*0.15);
         doc.rect(col2, row+1.5, 100, 6, 'F');
         setTextColor(col); doc.setFont('helvetica','bold'); doc.setFontSize(7);
         doc.text(v, col2+2, row+6);
       });
 
-      // Bottom strip
       setFill(C.surface2); doc.rect(68, H-20, W-68, 12, 'F');
       setStroke(C.border); doc.setLineWidth(0.3); doc.line(68, H-20, W, H-20);
       setTextColor(C.textDim); doc.setFont('helvetica','normal'); doc.setFontSize(5.5);
@@ -1339,7 +1313,6 @@ async function generatePDF() {
       doc.text('DIBUAT OLEH: POWERFAULT AI v1.0  |  ' + ts.toLocaleString('id-ID') + '  |  COMTRADE IEEE C37.111-1999', 72, H-12);
       doc.text('© 2025 — ULTG Bandung Barat  |  PLN Transmisi Jawa Bagian Tengah', 72, H-7);
 
-      // Watermark
       doc.saveGraphicsState();
       setTextColor([0,40,60]); doc.setFontSize(60); doc.setFont('helvetica','bold');
       doc.text('POWERFAULT', W/2, H/2, { align:'center', angle:30 });
@@ -1348,9 +1321,7 @@ async function generatePDF() {
       footer(pageNum++);
     }
 
-    // ─────────────────────────────────────────────
-    // PAGE 2: SUMMARY + CLASSIFICATION + CONFIDENCE
-    // ─────────────────────────────────────────────
+    // ── PAGE 2: SUMMARY + CLASSIFICATION + CONFIDENCE ──
     if (activeSecs.has('summary') || activeSecs.has('classification') || activeSecs.has('confidence')) {
       setPdfProgress(25, 'Membuat ringkasan & klasifikasi...');
       await delay(200);
@@ -1361,7 +1332,6 @@ async function generatePDF() {
       let curY = 18;
 
       if (activeSecs.has('summary')) {
-        // Alert banner
         setFill([60, 10, 10]); doc.rect(0, curY, W, 16, 'F');
         setFill(C.danger); doc.rect(0, curY, 3, 16, 'F');
         setStroke(C.danger); doc.setLineWidth(0.3); doc.line(0, curY+16, W, curY+16);
@@ -1369,7 +1339,6 @@ async function generatePDF() {
         doc.text('// GANGGUAN TERDETEKSI  ·  KELAS TINGGI', 8, curY+5);
         doc.setFontSize(10);
         doc.text('SAMBARAN PETIR — FLASHOVER INSULATOR SUTET 150 kV', 8, curY+12);
-        // Confidence badge
         setTextColor(C.danger); doc.setFont('helvetica','bold'); doc.setFontSize(16);
         doc.text('96.3%', W-14, curY+10, { align:'right' });
         setTextColor(C.textDim); doc.setFontSize(5); doc.setFont('helvetica','normal');
@@ -1382,28 +1351,23 @@ async function generatePDF() {
       if (activeSecs.has('classification')) {
         panelBox(8, curY, halfW, 78, '🎯 HASIL KLASIFIKASI CNN 1-D', 'OUTPUT MODEL');
         let iy = curY + 12;
-        // Icon box
         setFill([50,10,10]); doc.rect(12, iy, 16, 16, 'F');
         setStroke(C.danger); doc.setLineWidth(0.3); doc.rect(12, iy, 16, 16, 'S');
         doc.setFontSize(10); doc.text('⚡', 20, iy+11.5, {align:'center'});
-        // Class name
         setTextColor(C.danger); doc.setFont('helvetica','bold'); doc.setFontSize(9);
         doc.text('Flashover Akibat', 32, iy+6);
         doc.text('Sambaran Petir', 32, iy+12);
         iy += 20;
-        // Category tag
         setFill([0,30,50]); doc.rect(12, iy, halfW-8, 6, 'F');
         setStroke([0,80,120]); doc.setLineWidth(0.2); doc.rect(12, iy, halfW-8, 6, 'S');
         setTextColor(C.accent); doc.setFont('helvetica','normal'); doc.setFontSize(5);
         doc.text('KATEGORI: GANGGUAN EKSTERNAL  ·  TRANSIEN TEGANGAN TINGGI', 14, iy+4);
         iy += 9;
-        // Description
         setTextColor(C.textMid); doc.setFontSize(5.5); doc.setFont('helvetica','normal');
         const desc = 'Sinyal menunjukkan karakteristik impuls tegangan tinggi (≈0.8–10 μs rise time) khas pada direct/indirect lightning stroke. Arus impuls gangguan sangat besar pada Fasa A sebelum operasi rele jarak. Pola konsisten dengan mekanisme Back Flashover insulator SUTET 150 kV.';
         const descLines = doc.splitTextToSize(desc, halfW-12);
         doc.text(descLines, 12, iy+4);
         iy += descLines.length * 4 + 4;
-        // Pills
         pill(12, iy+3, 'FASA: A', C.danger);
         pill(40, iy+3, 'JENIS: 1Φ-G', C.accent);
         pill(72, iy+3, 'DURASI: 68 ms', C.warn);
@@ -1434,9 +1398,7 @@ async function generatePDF() {
       footer(pageNum++);
     }
 
-    // ─────────────────────────────────────────────
-    // PAGE 3: WAVEFORM CHART (drawn via Canvas)
-    // ─────────────────────────────────────────────
+    // ── PAGE 3: WAVEFORM ──
     if (activeSecs.has('waveform')) {
       setPdfProgress(40, 'Render waveform sinyal DFR...');
       await delay(200);
@@ -1456,23 +1418,18 @@ async function generatePDF() {
       const wY = 28, wH = (H - 48) / 4 - 3;
       channels.forEach((ch, i) => {
         const y = wY + i * (wH + 4);
-        // Channel label
         setTextColor(ch.color); doc.setFont('helvetica','bold'); doc.setFontSize(5.5);
         doc.text(ch.label, 12, y);
         setTextColor(C.textDim); doc.setFont('helvetica','normal'); doc.setFontSize(5);
         doc.text(ch.peak, W-14, y, { align:'right' });
-        // Draw waveform canvas → PNG → embed
         const offCanvas = document.createElement('canvas');
         offCanvas.width = 800; offCanvas.height = 80;
         const ctx = offCanvas.getContext('2d');
         ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(0,0,800,80);
-        // Grid
         ctx.strokeStyle = 'rgba(255,255,255,0.05)'; ctx.lineWidth=1;
         for (let x=0;x<800;x+=80){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,80);ctx.stroke();}
         ctx.beginPath();ctx.moveTo(0,40);ctx.lineTo(800,40);ctx.stroke();
-        // Fault line
         ctx.strokeStyle='rgba(255,60,60,0.3)';ctx.setLineDash([6,4]);ctx.beginPath();ctx.moveTo(280,0);ctx.lineTo(280,80);ctx.stroke();ctx.setLineDash([]);
-        // Signal
         ctx.beginPath(); ctx.lineWidth=2; ctx.strokeStyle=`rgb(${ch.color.join(',')})`;
         const pts=400,mid=40;
         for(let p=0;p<pts;p++){
@@ -1484,24 +1441,19 @@ async function generatePDF() {
         }
         ctx.stroke();
         ctx.fillStyle=`rgba(${C.danger.join(',')},0.6)`;ctx.font='10px monospace';ctx.fillText('FAULT',286,14);
-        // Embed into PDF
         const imgData = offCanvas.toDataURL('image/png');
         doc.addImage(imgData, 'PNG', 12, y+2, W-24, wH-3);
-        // Border
         setStroke(ch.color); doc.setLineWidth(0.2);
         doc.rect(12, y+2, W-24, wH-3, 'S');
       });
 
-      // Legend
       setTextColor(C.textDim); doc.setFont('helvetica','normal'); doc.setFontSize(5);
       doc.text('⬛ MERAH: Titik gangguan (t = 0ms)  ·  Duration rekaman: 200ms  ·  Sampling Rate: 4000 Hz  ·  Kanal: 6 Analog + 4 Digital', 12, H-14);
 
       footer(pageNum++);
     }
 
-    // ─────────────────────────────────────────────
-    // PAGE 4: PARAMETERS + SOE
-    // ─────────────────────────────────────────────
+    // ── PAGE 4: PARAMETERS + SOE ──
     if (activeSecs.has('params') || activeSecs.has('soe')) {
       setPdfProgress(55, 'Menulis parameter & sequence of events...');
       await delay(200);
@@ -1544,7 +1496,8 @@ async function generatePDF() {
 
       if (activeSecs.has('soe')) {
         const sx = 12 + halfW2;
-        panelBox(sx, 18, halfW2, 164, '⏱ URUTAN KEJADIAN (SOE)', 'SEQUENCE OF EVENTS');
+        // FIX BUG 6: tinggi panel diperbesar agar konten tidak overflow
+        panelBox(sx, 18, halfW2, 185, '⏱ URUTAN KEJADIAN (SOE)', 'SEQUENCE OF EVENTS');
         const events = [
           { time: 't = -15ms', title: 'Sambaran Petir Terdeteksi', desc: 'Impuls tegangan tinggi masuk ke konduktor Fasa A. Overvoltage melampaui BIL insulator string (±700 kV peak estimasi).', dot: C.danger },
           { time: 't = 0ms', title: 'Flashover Insulator — Fasa A ke Tower', desc: 'Isolasi insulator string breakdown. Busur api dari konduktor ke cross-arm. Arus gangguan 12.83 kA ke tanah.', dot: C.danger },
@@ -1554,31 +1507,26 @@ async function generatePDF() {
         ];
         let ey = 28;
         events.forEach(ev => {
-          // Dot
-          setFill(ev.dot); doc.circle(sx+8, ey+1, 2, 'F');
-          // Vertical line
+          // FIX BUG 2: ganti doc.circle() → doc.ellipse()
+          setFill(ev.dot); doc.ellipse(sx+8, ey+1, 2, 2, 'F');
           setStroke([30,50,70]); doc.setLineWidth(0.3);
           doc.line(sx+8, ey+3, sx+8, ey+16);
-          // Time
           setTextColor(C.accent); doc.setFont('helvetica','bold'); doc.setFontSize(5);
           doc.text(ev.time, sx+12, ey+2.5);
-          // Title
           setTextColor(C.text); doc.setFontSize(6);
           doc.text(ev.title, sx+12, ey+7);
-          // Desc
           setTextColor(C.textMid); doc.setFont('helvetica','normal'); doc.setFontSize(5);
           const dlines = doc.splitTextToSize(ev.desc, halfW2-22);
           doc.text(dlines, sx+12, ey+11.5);
-          ey += 28;
+          // FIX BUG 6: jarak antar event dikurangi dari 28 → 24 agar muat
+          ey += 24;
         });
       }
 
       footer(pageNum++);
     }
 
-    // ─────────────────────────────────────────────
-    // PAGE 5: COMPONENTS + CNN INFO
-    // ─────────────────────────────────────────────
+    // ── PAGE 5: COMPONENTS + CNN ──
     if (activeSecs.has('components') || activeSecs.has('cnn')) {
       setPdfProgress(70, 'Status komponen & info model CNN...');
       await delay(200);
@@ -1604,7 +1552,6 @@ async function generatePDF() {
           const cx = 12 + col*colW, cy = startY + row*18;
           setFill(C.bg); doc.rect(cx, cy, colW-2, 15, 'F');
           setStroke(C.border); doc.setLineWidth(0.2); doc.rect(cx, cy, colW-2, 15, 'S');
-          // Status bar top
           setFill(c[2]); doc.rect(cx, cy, 2, 15, 'F');
           setTextColor(C.textMid); doc.setFont('helvetica','normal'); doc.setFontSize(5.5);
           doc.text(c[0], cx+5, cy+6);
@@ -1627,26 +1574,25 @@ async function generatePDF() {
           { name:'FC2', sub:'64 · ReLU', col:C.accent2 },
           { name:'OUTPUT', sub:'8cls · 96.3%', col:C.danger },
         ];
+        // FIX BUG 8: tinggi layer konsisten berdasarkan size map, bukan random
+        const sizeMap = [30, 28, 24, 32, 24, 36, 24, 28, 24, 30];
         const lW = (W-24)/layers.length - 1;
         layers.forEach((l, i) => {
           const lx = 12 + i*(lW+1);
-          const lh = 20 + (i===0?10:i===layers.length-1?10:Math.random()*5|0);
-          const ly = 112 + (30-lh)/2;
-          setFill([l.col[0]*0.1, l.col[1]*0.1, l.col[2]*0.1]);
+          const lh = sizeMap[i] || 26;
+          const ly = 112 + (36-lh)/2;
+          doc.setFillColor(l.col[0]*0.1, l.col[1]*0.1, l.col[2]*0.1);
           doc.rect(lx, ly, lW, lh, 'F');
           setStroke(l.col); doc.setLineWidth(0.3); doc.rect(lx, ly, lW, lh, 'S');
           setTextColor(l.col); doc.setFont('helvetica','bold'); doc.setFontSize(4.5);
           doc.text(l.name, lx+lW/2, ly+lh/2-1, {align:'center'});
           setTextColor(C.textDim); doc.setFont('helvetica','normal'); doc.setFontSize(4);
           doc.text(l.sub, lx+lW/2, ly+lh/2+3.5, {align:'center'});
-          // Arrow
           if(i<layers.length-1){setStroke(C.textDim);doc.setLineWidth(0.2);doc.line(lx+lW,ly+lh/2,lx+lW+1,ly+lh/2);}
-          // Label below
           setTextColor(C.textDim); doc.setFontSize(4); doc.setFont('helvetica','normal');
           doc.text(l.name, lx+lW/2, ly+lh+5, {align:'center'});
         });
 
-        // Model stats
         setFill(C.surface2); doc.rect(12, 152, W-24, 14, 'F');
         setStroke(C.border); doc.setLineWidth(0.2); doc.rect(12, 152, W-24, 14, 'S');
         const stats = ['Total Parameter: 1,247,432', 'Optimizer: Adam (lr=0.001)', 'Loss: Categorical Crossentropy', 'Epochs: 150', 'Train Acc: 97.2%', 'Val Acc: 95.7%'];
@@ -1663,19 +1609,15 @@ async function generatePDF() {
       footer(pageNum++);
     }
 
-    // ─────────────────────────────────────────────
-    // PAGE 6: RECOMMENDATIONS
-    // ─────────────────────────────────────────────
+    // ── PAGE 6: RECOMMENDATIONS ──
     if (activeSecs.has('recommendations')) {
       setPdfProgress(85, 'Menulis rekomendasi tindakan...');
       await delay(200);
       doc.addPage();
+      // FIX BUG 1: hapus setFill+bgPage dobel, cukup panggil bgPage() sekali
       bgPage();
       header('Rekomendasi Tindakan Perbaikan', 'PowerFault AI — Analisis Gangguan');
 
-      // Orange accent
-      setFill([40, 15, 5]); doc.rect(0, 0, W, H, 'F');
-      bgPage();
       setFill(C.accent2); doc.rect(0, 18, 3, H-28, 'F');
 
       panelBox(8, 18, W-16, H-30, '📋 REKOMENDASI TINDAKAN — BERDASARKAN ANALISIS CNN 1-D', 'PRIORITAS TERTINGGI');
@@ -1694,33 +1636,28 @@ async function generatePDF() {
       recs.forEach((r, i) => {
         const col = i % recCols, row = Math.floor(i / recCols);
         const rx = 12 + col*recW, ry = 28 + row*(recH+3);
-        // Card bg
-        setFill([r.color[0]*0.05, r.color[1]*0.05, r.color[2]*0.05]);
+        doc.setFillColor(r.color[0]*0.05, r.color[1]*0.05, r.color[2]*0.05);
         doc.rect(rx, ry, recW-2, recH, 'F');
         setStroke(r.color); doc.setLineWidth(0.25);
         doc.rect(rx, ry, recW-2, recH, 'S');
-        // Left accent
         setFill(r.color); doc.rect(rx, ry, 2, recH, 'F');
-        // Number badge
-        setFill([r.color[0]*0.2, r.color[1]*0.2, r.color[2]*0.2]);
-        doc.circle(rx+8, ry+6, 4, 'F');
-        setStroke(r.color); doc.setLineWidth(0.3); doc.circle(rx+8, ry+6, 4, 'S');
+        // FIX BUG 2: ganti doc.circle() → doc.ellipse()
+        doc.setFillColor(r.color[0]*0.2, r.color[1]*0.2, r.color[2]*0.2);
+        doc.ellipse(rx+8, ry+6, 4, 4, 'F');
+        setStroke(r.color); doc.setLineWidth(0.3); doc.ellipse(rx+8, ry+6, 4, 4, 'S'); // FIX BUG 2
         setTextColor(r.color); doc.setFont('helvetica','bold'); doc.setFontSize(6);
         doc.text(String(r.num), rx+8, ry+7.5, {align:'center'});
-        // Priority badge
-        setFill([r.color[0]*0.2, r.color[1]*0.2, r.color[2]*0.2]);
-        doc.roundedRect(rx+14, ry+3, 22, 5.5, 1, 1, 'F');
+        // FIX BUG 3: ganti roundedRect → rect
+        doc.setFillColor(r.color[0]*0.2, r.color[1]*0.2, r.color[2]*0.2);
+        doc.rect(rx+14, ry+3, 22, 5.5, 'F');
         setTextColor(r.color); doc.setFont('helvetica','bold'); doc.setFontSize(4.5);
         doc.text(r.prio, rx+25, ry+7, {align:'center'});
-        // Title
         setTextColor(C.text); doc.setFont('helvetica','bold'); doc.setFontSize(6);
         const titleLines = doc.splitTextToSize(r.title, recW-12);
         doc.text(titleLines, rx+4, ry+16);
-        // Description
         setTextColor(C.textMid); doc.setFont('helvetica','normal'); doc.setFontSize(5.2);
         const descLines = doc.splitTextToSize(r.desc, recW-10);
         doc.text(descLines, rx+4, ry+16+titleLines.length*5);
-        // Tag
         setFill(C.surface2); doc.rect(rx+3, ry+recH-8, recW-10, 6, 'F');
         setTextColor(C.textDim); doc.setFontSize(4.5);
         doc.text(r.tag, rx+5, ry+recH-4);
@@ -1729,9 +1666,7 @@ async function generatePDF() {
       footer(pageNum++);
     }
 
-    // ─────────────────────────────────────────────
-    // FINAL — SAVE
-    // ─────────────────────────────────────────────
+    // ── SAVE ──
     setPdfProgress(95, 'Menyimpan file PDF...');
     await delay(300);
 
